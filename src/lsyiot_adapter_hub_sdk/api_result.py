@@ -5,7 +5,7 @@ API 响应结果类定义。
 """
 
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Union
 
 
 class AdapterHubApiResult:
@@ -32,7 +32,9 @@ class AdapterHubApiResult:
         Returns:
             对应键的值，如果不存在则返回默认值
         """
-        return self._json_result.get(key, default)
+        if isinstance(self._json_result, dict):
+            return self._json_result.get(key, default)
+        return default
 
     @property
     def status(self) -> str:
@@ -41,7 +43,9 @@ class AdapterHubApiResult:
         Returns:
             状态字符串，'success' 或 'error'
         """
-        return self._json_result.get("status", "error")
+        if isinstance(self._json_result, dict):
+            return self._json_result.get("status", "error")
+        return "error"
 
     @property
     def message(self) -> str:
@@ -50,7 +54,9 @@ class AdapterHubApiResult:
         Returns:
             状态消息
         """
-        return self._json_result.get("message", "Unknown error")
+        if isinstance(self._json_result, dict):
+            return self._json_result.get("message", "Unknown error")
+        return "Unknown error"
 
     @property
     def status_code(self) -> int:
@@ -79,13 +85,24 @@ class AdapterHubApiResult:
         """
         return self._raw_result
 
-    def to_dict(self) -> Dict[str, Any]:
-        """转换为字典
+    @property
+    def data(self) -> Any:
+        """获取解析后的 JSON 数据
 
         Returns:
-            解析后的字典
+            解析后的 JSON 数据（可能是 dict、list 或其他类型）
         """
-        return self._json_result.copy()
+        return self._json_result
+
+    def to_dict(self) -> Union[Dict[str, Any], Any]:
+        """转换为字典或返回原始数据
+
+        Returns:
+            如果响应是字典则返回字典副本，否则返回原始解析数据
+        """
+        if isinstance(self._json_result, dict):
+            return self._json_result.copy()
+        return self._json_result
 
     def __repr__(self) -> str:
         return f"AdapterHubApiResult(status='{self.status}', message='{self.message}', status_code={self.status_code})"

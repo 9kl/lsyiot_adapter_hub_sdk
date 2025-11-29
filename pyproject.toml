@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lsyiot-adapter-hub-sdk"
-version = "0.0.2"
+version = "0.0.3"
 description = "LSY IoT Adapter Hub SDK - 用于与 Adapter Hub RPC/API 服务进行通信的 Python SDK"
 readme = "README.md"
 requires-python = ">=3.8"

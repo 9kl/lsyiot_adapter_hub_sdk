@@ -66,17 +66,28 @@ class AdapterHubApiClient:
         try:
             response = self._session.post(url, json=data, verify=self.verify_ssl, timeout=self.timeout, headers={"Content-Type": "application/json"})
 
+            # 先检查 HTTP 状态码
+            if response.status_code >= 400:
+                # HTTP 错误状态码，直接抛出异常
+                error_message = self._get_http_error_message(response.status_code)
+                raise AdapterHubApiError(
+                    message=f"HTTP 错误: {response.status_code} {error_message}",
+                    code=response.status_code,
+                    data={"url": url, "status_code": response.status_code, "response_text": response.text[:500] if response.text else None},
+                )
+
             # 解析响应
             return self._parse_response(response)
 
+        except AdapterHubApiError:
+            # 已经是 AdapterHubApiError，直接向上抛出
+            raise
         except Timeout as e:
             raise AdapterHubApiError(message=f"API 请求超时: {url}", code=-1002, data={"url": url, "error": str(e)})
         except RequestsConnectionError as e:
             raise AdapterHubApiError(message=f"API 连接失败: 无法连接到服务器 {url}", code=-1001, data={"url": url, "error": str(e)})
         except RequestException as e:
             raise AdapterHubApiError(message=f"API 请求异常: {str(e)}", code=-1000, data={"url": url, "error": str(e)})
-        except json.JSONDecodeError as e:
-            raise AdapterHubApiError(message="API 响应解析失败: 服务端返回的不是有效的 JSON 格式", code=-1003, data={"error": str(e)})
         except Exception as e:
             raise AdapterHubApiError(message=f"API 调用异常: {type(e).__name__} - {str(e)}", code=-1999, data={"error_type": type(e).__name__, "error": str(e)})
 
@@ -92,13 +103,41 @@ class AdapterHubApiClient:
         Raises:
             AdapterHubApiError: 当响应状态为错误时
         """
-        result = AdapterHubApiResult(response.text, response.status_code)
+        try:
+            result = AdapterHubApiResult(response.text, response.status_code)
+        except json.JSONDecodeError as e:
+            raise AdapterHubApiError(
+                message="API 响应解析失败: 服务端返回的不是有效的 JSON 格式", code=-1003, data={"error": str(e), "response_text": response.text[:500] if response.text else None}
+            )
 
-        # 检查是否成功
+        # 检查业务状态是否成功
         if not result.is_success:
             raise AdapterHubApiError(message=result.message, code=result.status_code, data=result.to_dict())
 
         return result
+
+    def _get_http_error_message(self, status_code: int) -> str:
+        """获取 HTTP 状态码对应的错误消息
+
+        Args:
+            status_code: HTTP 状态码
+
+        Returns:
+            错误消息
+        """
+        http_errors = {
+            400: "Bad Request",
+            401: "Unauthorized",
+            403: "Forbidden",
+            404: "Not Found",
+            405: "Method Not Allowed",
+            408: "Request Timeout",
+            500: "Internal Server Error",
+            502: "Bad Gateway",
+            503: "Service Unavailable",
+            504: "Gateway Timeout",
+        }
+        return http_errors.get(status_code, "Unknown Error")
 
     def close(self):
         """关闭客户端会话"""

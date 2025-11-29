@@ -5,7 +5,7 @@ RPC 响应结果类定义。
 """
 
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 
 
 class AdapterHubRpcResult:
@@ -30,7 +30,9 @@ class AdapterHubRpcResult:
         Returns:
             对应键的值，如果不存在则返回默认值
         """
-        return self._json_result.get(key, default)
+        if isinstance(self._json_result, dict):
+            return self._json_result.get(key, default)
+        return default
 
     @property
     def code(self) -> int:
@@ -39,7 +41,9 @@ class AdapterHubRpcResult:
         Returns:
             状态码，200 表示成功，其他表示失败
         """
-        return self._json_result.get("code", -1)
+        if isinstance(self._json_result, dict):
+            return self._json_result.get("code", -1)
+        return -1
 
     @property
     def message(self) -> str:
@@ -48,7 +52,9 @@ class AdapterHubRpcResult:
         Returns:
             状态消息
         """
-        return self._json_result.get("message", "Unknown error")
+        if isinstance(self._json_result, dict):
+            return self._json_result.get("message", "Unknown error")
+        return "Unknown error"
 
     @property
     def data(self) -> Optional[Any]:
@@ -57,7 +63,9 @@ class AdapterHubRpcResult:
         Returns:
             返回数据，可能为 None
         """
-        return self._json_result.get("data")
+        if isinstance(self._json_result, dict):
+            return self._json_result.get("data")
+        return self._json_result
 
     @property
     def error(self) -> bool:
@@ -66,7 +74,9 @@ class AdapterHubRpcResult:
         Returns:
             True 表示有错误，False 表示成功
         """
-        return self._json_result.get("error", True)
+        if isinstance(self._json_result, dict):
+            return self._json_result.get("error", True)
+        return True
 
     @property
     def is_success(self) -> bool:
@@ -86,13 +96,15 @@ class AdapterHubRpcResult:
         """
         return self._raw_result
 
-    def to_dict(self) -> Dict[str, Any]:
-        """转换为字典
+    def to_dict(self) -> Union[Dict[str, Any], Any]:
+        """转换为字典或返回原始数据
 
         Returns:
-            解析后的字典
+            如果响应是字典则返回字典副本，否则返回原始解析数据
         """
-        return self._json_result.copy()
+        if isinstance(self._json_result, dict):
+            return self._json_result.copy()
+        return self._json_result
 
     def __repr__(self) -> str:
         return f"AdapterHubRpcResult(code={self.code}, message='{self.message}', error={self.error})"
